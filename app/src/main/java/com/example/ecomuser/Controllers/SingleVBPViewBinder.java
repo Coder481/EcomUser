@@ -54,7 +54,7 @@ public class SingleVBPViewBinder {
     }
 
     private void updateCheckoutSummary() {
-        Context context = b.getRoot().getContext();
+        Context context = b.getRoot().getContext(); // We can get context from binding using any view (here we take root)
         if(context instanceof MainActivity){
             ((MainActivity) context).updateCartSummary();
         }else{

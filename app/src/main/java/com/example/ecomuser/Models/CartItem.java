@@ -17,4 +17,13 @@ public class CartItem {
         this.price=price;
         this.name=name;
     }
+
+    @Override
+    public String toString() {
+        return "CartItem{" +
+                "name='" + name + '\'' +
+                ", price=" + price +
+                ", qty=" + qty +
+                '}';
+    }
 }

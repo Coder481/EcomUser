@@ -8,6 +8,7 @@ import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.ecomuser.Controllers.MultipleVBPAndWBPViewBinder;
 import com.example.ecomuser.Controllers.SingleVBPViewBinder;
 import com.example.ecomuser.MainActivity;
 import com.example.ecomuser.Models.Cart;
@@ -59,6 +60,9 @@ public class ProductAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
 
             vh.b.name.setText(product.name);
             vh.b.price.setText(product.type == Product.WEIGHT_BASED ? "Rs. "+product.pricePerkg+"/kg":product.variantsString());
+
+            // Binding Buttons for WBP and Multiple VBP
+            new MultipleVBPAndWBPViewBinder().bind(vh.b,product,cart,position);
         }
         else{
 
@@ -67,7 +71,7 @@ public class ProductAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder
             vh.b.name.setText(product.name + " " + product.variants.get(0).name);
             vh.b.price.setText(product.variantsString());
 
-            // Binding Buttons
+            // Binding Buttons for Single VBP
             new SingleVBPViewBinder().bind(vh.b,product,cart);
         }
     }

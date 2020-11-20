@@ -37,8 +37,8 @@ public class Cart {
         totalPrice += variant.price;
 
         // Add vbProduct quantity to Map
-        if(totalVariantsQtyMap.containsKey(key)){
-            totalVariantsQtyMap.put(product.name,totalVariantsQtyMap.get(key)+1);
+        if(totalVariantsQtyMap.containsKey(product.name)){
+            totalVariantsQtyMap.put(product.name,totalVariantsQtyMap.get(product.name)+1);
         }else {
             totalVariantsQtyMap.put(product.name,1);
         }
@@ -63,7 +63,8 @@ public class Cart {
         totalPrice -= variant.price;
 
         // Remove vbProduct quantity from map
-        totalVariantsQtyMap.put(product.name,totalVariantsQtyMap.get(product.name)-1);
+        int qty = totalVariantsQtyMap.get(product.name)-1;
+        totalVariantsQtyMap.put(product.name,qty);
         // checking for completely removal
         if (totalVariantsQtyMap.get(product.name)==0){
             totalVariantsQtyMap.remove(key);
@@ -114,5 +115,14 @@ public class Cart {
             totalNoOfItems--;
             allCartItemsMap.remove(product.name);
         }
+    }
+
+    public int getVariantQty(Product product, Variant variant) {
+        String key = product.name+" "+variant.name;
+
+        if (allCartItemsMap.containsKey(key)){
+            return (int) allCartItemsMap.get(key).qty;
+        }
+        return 0;
     }
 }
