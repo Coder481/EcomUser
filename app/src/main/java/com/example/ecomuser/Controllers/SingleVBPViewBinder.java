@@ -40,7 +40,7 @@ public class SingleVBPViewBinder {
         });
     }
 
-    private void updateQtyView(int qty) {
+    public void updateQtyView(int qty) {
         if (qty==0){
             b.addBtn.setVisibility(View.VISIBLE);
             b.qtyGroup.setVisibility(View.GONE);

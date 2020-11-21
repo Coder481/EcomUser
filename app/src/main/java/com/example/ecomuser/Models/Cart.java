@@ -1,13 +1,16 @@
 package com.example.ecomuser.Models;
 
+import android.os.Parcelable;
+
 import com.example.ecomuser.Models.CartItem;
 import com.example.ecomuser.Models.Product;
 import com.example.ecomuser.Models.Variant;
 
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 
-public class Cart {
+public class Cart implements Serializable {
 
     // Map to save all CartItems by their name as key
     public Map<String,CartItem> allCartItemsMap = new HashMap<>();
