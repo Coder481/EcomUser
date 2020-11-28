@@ -1,6 +1,8 @@
 package com.example.ecomuser.Models;
 
-public class CartItem {
+import java.io.Serializable;
+
+public class CartItem implements Serializable {
 
     public String name;
     public int price;

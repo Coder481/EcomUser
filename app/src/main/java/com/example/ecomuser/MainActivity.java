@@ -1,32 +1,36 @@
 package com.example.ecomuser;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.DividerItemDecoration;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
 import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Toast;
 
 import com.example.ecomuser.Adapters.ProductAdapter;
-import com.example.ecomuser.Controllers.SingleVBPViewBinder;
 import com.example.ecomuser.Models.Cart;
 import com.example.ecomuser.Models.CartItem;
+import com.example.ecomuser.Models.Inventory;
 import com.example.ecomuser.Models.Product;
-import com.example.ecomuser.Models.Variant;
 import com.example.ecomuser.databinding.ActivityMainBinding;
 import com.example.ecomuser.databinding.ProductItemSingleVbBinding;
+import com.firebase.ui.auth.AuthUI;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
-import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -43,6 +47,8 @@ public class MainActivity extends AppCompatActivity {
 
     Product product;
     private CartItem cartItem;
+    private MyApp app;
+    private List<Product> products;
 
 
     @Override
@@ -51,10 +57,9 @@ public class MainActivity extends AppCompatActivity {
         b=ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(b.getRoot());
 
-        //loadSavedData();
+        app = (MyApp) getApplicationContext();
 
-        setupProductsList();
-
+        loadSavedData();
         setupCheckout();
     }
 
@@ -78,16 +83,49 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void loadSavedData(){
-        Gson gson = new Gson();
+        if (app.isOffline()){
+            app.showToast(this,"You are offline \n Check your connectivity");
+            return;
+        }
+
+        app.showLoadingDialog(this);
+
+        app.db.collection("Inventory").document("Products")
+                .get()
+                .addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
+                    @Override
+                    public void onSuccess(DocumentSnapshot documentSnapshot) {
+                        if (documentSnapshot.exists()){
+                            Inventory inventory = documentSnapshot.toObject(Inventory.class);
+                            products = inventory.products;
+                        }else{
+                            products = new ArrayList<>();
+                        }
+                        setupProductsList();
+                        app.hideLoadingDialog();
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        app.showToast(MainActivity.this,"Failed to get Data!!");
+                        app.hideLoadingDialog();
+                    }
+                });
+
+
+
+        /*Gson gson = new Gson();
         mSharedPref = getSharedPreferences("product_data",MODE_PRIVATE);
         String json = mSharedPref.getString(MY_DATA,null);
         if (json!=null) {
             setupViewsSharedPref(gson, json);
         } else
-            cart.allCartItemsMap = new HashMap<>();
+            cart.allCartItemsMap = new HashMap<>();*/
     }
 
     private void setupViewsSharedPref(Gson gson, String json) {
+
 
         ProductItemSingleVbBinding b = ProductItemSingleVbBinding.inflate(getLayoutInflater());
         cart.allCartItemsMap = gson.fromJson(json,new TypeToken<Map<String, CartItem>>(){}.getType());
@@ -111,8 +149,7 @@ public class MainActivity extends AppCompatActivity {
 
     /** Product **/
     private void setupProductsList() {
-        // Create DataSet
-        List<Product> products = getProducts();
+
         // Create adapter object
         ProductAdapter adapter = new ProductAdapter(this,products,cart);
 
@@ -126,7 +163,7 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    private List<Product> getProducts() {
+    /*private List<Product> getProducts() {
         return Arrays.asList(
                 new Product("Bread",Arrays.asList(
                         new Variant("Small",25)
@@ -138,10 +175,10 @@ public class MainActivity extends AppCompatActivity {
                         new Variant("500g",100)
                 ))
         );
-    }
+    }*/
 
 
-    /** Intent (New Activity)**/
+    /** Intent (Cart Activity)**/
     private void setupIntent() {
         Intent intent = new Intent(this, CartActivity.class);
 
@@ -175,4 +212,50 @@ public class MainActivity extends AppCompatActivity {
         b.cartSummary.setText("Total Rs. "+cart.totalPrice+"\nTotal items: "+cart.totalNoOfItems);
     }
 
+    /** Options Menu **/
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.activity_main_options_menu,menu);
+        return super.onCreateOptionsMenu(menu);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        if (item.getItemId() == R.id.signout_btn){
+            askForConfirmation();
+
+        }
+
+        return super.onOptionsItemSelected(item);
+    }
+
+    private void askForConfirmation() {
+        new AlertDialog.Builder(this)
+                .setTitle("Are you sure to sign out?")
+                .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        setupSignOut();
+                    }
+                })
+                .setNegativeButton("CANCEL", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        app.showToast(MainActivity.this,"Cancelled!");
+                    }
+                })
+                .show();
+    }
+
+    private void setupSignOut() {
+        AuthUI.getInstance()
+                .signOut(this)
+                .addOnSuccessListener(new OnSuccessListener<Void>() {
+                    @Override
+                    public void onSuccess(Void aVoid) {
+                        app.showToast(MainActivity.this,"SIGNED OUT!");
+                        startActivity(new Intent(MainActivity.this,SignInActivity.class));
+                    }
+                });
+    }
 }
