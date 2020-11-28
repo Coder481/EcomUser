@@ -1,5 +1,9 @@
 # EcomUser
 
+
+### Download apk [here](https://github.com/Coder481/EcomUser/releases/download/latest/ecom_user_v0.3.apk)
+
+
 ### Some Views of the app
 |Home Page| Signed In | Signing Out |
 |:----------------:|:----------------:|:----------------:|
