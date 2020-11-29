@@ -26,11 +26,15 @@ import com.example.ecomuser.databinding.ProductItemSingleVbBinding;
 import com.firebase.ui.auth.AuthUI;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -51,6 +55,7 @@ public class MainActivity extends AppCompatActivity {
     private List<Product> products;
 
 
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -59,29 +64,18 @@ public class MainActivity extends AppCompatActivity {
 
         app = (MyApp) getApplicationContext();
 
+        Intent signInIntent = getIntent();
+        String myEmailId = signInIntent.getStringExtra("MyId");
+
         loadSavedData();
         setupCheckout();
+        setupOrderBtn(myEmailId);
     }
 
-    /** Shared Preferences **/
-    /*@Override
-    protected void onPause() {
-        super.onPause();
-        saveData();
-    }*/
 
-    private void saveData() {
-        mSharedPref = getSharedPreferences("product_data",MODE_PRIVATE);
-        Gson gson = new Gson();
-        mSharedPref.edit()
-                .putString(MY_DATA,gson.toJson(cart.allCartItemsMap))
-                .putInt("singleVBPQty",(int)(cart.allCartItemsMap.get(product.name+" "+product.variants.get(0)).qty))
-                .putString("totalVariantsQtyMap",gson.toJson(cart.totalVariantsQtyMap))
-                .putInt("totalPrice",cart.totalPrice)
-                .putInt("totalNoOfItems",cart.totalNoOfItems)
-                .apply();
-    }
 
+
+    /** Load Data From Firebase **/
     private void loadSavedData(){
         if (app.isOffline()){
             app.showToast(this,"You are offline \n Check your connectivity");
@@ -124,28 +118,6 @@ public class MainActivity extends AppCompatActivity {
             cart.allCartItemsMap = new HashMap<>();*/
     }
 
-    private void setupViewsSharedPref(Gson gson, String json) {
-
-
-        ProductItemSingleVbBinding b = ProductItemSingleVbBinding.inflate(getLayoutInflater());
-        cart.allCartItemsMap = gson.fromJson(json,new TypeToken<Map<String, CartItem>>(){}.getType());
-        //String key = cartItem.name;
-        int qty = mSharedPref.getInt("singleVBPQty",0);
-        cart.totalNoOfItems = mSharedPref.getInt("totalNoOfItems",0);
-        cart.totalPrice = mSharedPref.getInt("totalPrice",0);
-
-        b.addBtn.setVisibility(View.GONE);
-        b.qtyGroup.setVisibility(View.VISIBLE);
-        b.quantity.setText(qty+"");
-        Context context = b.getRoot().getContext(); // We can get context from binding using any view (here we take root)
-        if(context instanceof MainActivity){
-            ((MainActivity) context).updateCartSummary();
-        }else{
-            Toast.makeText(context, "Something went Wrong!!", Toast.LENGTH_SHORT).show();
-        }
-
-    }
-
 
     /** Product **/
     private void setupProductsList() {
@@ -163,30 +135,69 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    /*private List<Product> getProducts() {
-        return Arrays.asList(
-                new Product("Bread",Arrays.asList(
-                        new Variant("Small",25)
-                        ,new Variant("Medium",35)
-                        ,new Variant("Big",45)
-                ))
-                , new Product("Mango",80,2.270f)
-                ,new Product("Kiwi",Arrays.asList(
-                        new Variant("500g",100)
-                ))
-        );
-    }*/
 
 
-    /** Intent (Cart Activity)**/
-    private void setupIntent() {
-        Intent intent = new Intent(this, CartActivity.class);
 
 
-        intent.putExtra(EXTRA_MESSAGE, cart);
 
-        startActivity(intent);
+
+
+    /** Order Button **/
+    private void setupOrderBtn(String myEmailId) {
+        b.orderBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                new AlertDialog.Builder(MainActivity.this)
+                        .setTitle("Are you sure to make order?")
+                        .setPositiveButton("YES", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                makeOrder(myEmailId);
+                            }
+                        })
+                        .setNegativeButton("CANCEL", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                app.showToast(MainActivity.this,"Cancelled!!");
+                            }
+                        }).show();
+
+            }
+        });
     }
+
+    private void makeOrder(String myEmailId) {
+
+
+        Map<String , Object> orderMap = new HashMap<>();
+        orderMap.put("Customer Id",myEmailId);
+        orderMap.put("Items Ordered",cart.allCartItemsMap);
+        orderMap.put("Total items",cart.totalNoOfItems);
+        orderMap.put("Total price",cart.totalPrice);
+
+
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("dd-MM-yyyy");
+        String format = simpleDateFormat.format(new Date());
+
+        app.db.collection("Orders").document(format)
+                .set(orderMap)
+                .addOnSuccessListener(new OnSuccessListener<Void>() {
+                    @Override
+                    public void onSuccess(Void aVoid) {
+                        app.showToast(MainActivity.this,"Order Saved!!");
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        app.showToast(MainActivity.this,"Error!  Order cannot be saved..");
+                    }
+                });
+    }
+
+
+
+
 
 
     /** Cart Summary **/
@@ -208,11 +219,25 @@ public class MainActivity extends AppCompatActivity {
             b.checkout.setVisibility(View.GONE);
         }else{
             b.checkout.setVisibility(View.VISIBLE);
+            b.orderBtn.setVisibility(View.VISIBLE);
         }
         b.cartSummary.setText("Total Rs. "+cart.totalPrice+"\nTotal items: "+cart.totalNoOfItems);
     }
 
-    /** Options Menu **/
+    private void setupIntent() {
+        Intent intent = new Intent(this, CartActivity.class);
+
+
+        intent.putExtra(EXTRA_MESSAGE, cart);
+
+        startActivity(intent);
+    }  // Intent (Cart Activity)
+
+
+
+
+
+    /** Options Menu For SignIn **/
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.activity_main_options_menu,menu);
@@ -258,4 +283,51 @@ public class MainActivity extends AppCompatActivity {
                     }
                 });
     }
+
+
+
+
+
+    /** Shared Preferences **/
+    /*@Override
+    protected void onPause() {
+        super.onPause();
+        saveData();
+    }*/
+
+    private void saveData() {
+        mSharedPref = getSharedPreferences("product_data",MODE_PRIVATE);
+        Gson gson = new Gson();
+        mSharedPref.edit()
+                .putString(MY_DATA,gson.toJson(cart.allCartItemsMap))
+                .putInt("singleVBPQty",(int)(cart.allCartItemsMap.get(product.name+" "+product.variants.get(0)).qty))
+                .putString("totalVariantsQtyMap",gson.toJson(cart.totalVariantsQtyMap))
+                .putInt("totalPrice",cart.totalPrice)
+                .putInt("totalNoOfItems",cart.totalNoOfItems)
+                .apply();
+    }
+
+    private void setupViewsSharedPref(Gson gson, String json) {
+
+
+        ProductItemSingleVbBinding b = ProductItemSingleVbBinding.inflate(getLayoutInflater());
+        cart.allCartItemsMap = gson.fromJson(json,new TypeToken<Map<String, CartItem>>(){}.getType());
+        //String key = cartItem.name;
+        int qty = mSharedPref.getInt("singleVBPQty",0);
+        cart.totalNoOfItems = mSharedPref.getInt("totalNoOfItems",0);
+        cart.totalPrice = mSharedPref.getInt("totalPrice",0);
+
+        b.addBtn.setVisibility(View.GONE);
+        b.qtyGroup.setVisibility(View.VISIBLE);
+        b.quantity.setText(qty+"");
+        Context context = b.getRoot().getContext(); // We can get context from binding using any view (here we take root)
+        if(context instanceof MainActivity){
+            ((MainActivity) context).updateCartSummary();
+        }else{
+            Toast.makeText(context, "Something went Wrong!!", Toast.LENGTH_SHORT).show();
+        }
+
+    }
+
+
 }
