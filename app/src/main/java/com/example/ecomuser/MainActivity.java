@@ -1,6 +1,7 @@
 package com.example.ecomuser;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.DividerItemDecoration;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -33,10 +34,13 @@ import com.google.gson.reflect.TypeToken;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -53,7 +57,7 @@ public class MainActivity extends AppCompatActivity {
     private CartItem cartItem;
     private MyApp app;
     private List<Product> products;
-
+    private String username;
 
 
     @Override
@@ -66,6 +70,7 @@ public class MainActivity extends AppCompatActivity {
 
         Intent signInIntent = getIntent();
         String myEmailId = signInIntent.getStringExtra("MyId");
+        username = signInIntent.getStringExtra("Username");
 
         loadSavedData();
         setupCheckout();
@@ -170,16 +175,20 @@ public class MainActivity extends AppCompatActivity {
 
 
         Map<String , Object> orderMap = new HashMap<>();
-        orderMap.put("Customer Id",myEmailId);
-        orderMap.put("Items Ordered",cart.allCartItemsMap);
+        orderMap.put("Name",username);
+        orderMap.put("customerId",myEmailId);
+
+        List<CartItem> cartItemList = new ArrayList<>(cart.allCartItemsMap.values());
+
+        orderMap.put("Items Ordered",cartItemList);
         orderMap.put("Total items",cart.totalNoOfItems);
         orderMap.put("Total price",cart.totalPrice);
 
 
-        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("dd-MM-yyyy");
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss");
         String format = simpleDateFormat.format(new Date());
 
-        app.db.collection("Orders").document(format)
+        app.db.collection("Orders").document(format+"\n"+myEmailId)
                 .set(orderMap)
                 .addOnSuccessListener(new OnSuccessListener<Void>() {
                     @Override
@@ -216,6 +225,7 @@ public class MainActivity extends AppCompatActivity {
 
     public void updateCartSummary() {
         if (cart.totalNoOfItems == 0){
+            b.orderBtn.setVisibility(View.GONE);
             b.checkout.setVisibility(View.GONE);
         }else{
             b.checkout.setVisibility(View.VISIBLE);
@@ -237,10 +247,15 @@ public class MainActivity extends AppCompatActivity {
 
 
 
-    /** Options Menu For SignIn **/
+    /** Options Menu For SignOut **/
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.activity_main_options_menu,menu);
+
+        ActionBar actionBar = getSupportActionBar();
+        if (actionBar != null){
+            actionBar.setTitle("Hi "+username);
+        }
         return super.onCreateOptionsMenu(menu);
     }
 
@@ -260,6 +275,7 @@ public class MainActivity extends AppCompatActivity {
                 .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
+                        removeIdFromSharedPref();
                         setupSignOut();
                     }
                 })
@@ -272,6 +288,13 @@ public class MainActivity extends AppCompatActivity {
                 .show();
     }
 
+    private void removeIdFromSharedPref() {
+        mSharedPref = getSharedPreferences("signInId",MODE_PRIVATE);
+        mSharedPref.edit().remove(SignInActivity.MY_ID)
+                .remove("username")
+                .apply();
+    }
+
     private void setupSignOut() {
         AuthUI.getInstance()
                 .signOut(this)
@@ -279,10 +302,37 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onSuccess(Void aVoid) {
                         app.showToast(MainActivity.this,"SIGNED OUT!");
-                        startActivity(new Intent(MainActivity.this,SignInActivity.class));
+                        finish();
                     }
                 });
     }
+
+    private void moveToHomeScreen() {
+        Intent a = new Intent(Intent.ACTION_MAIN);
+        a.addCategory(Intent.CATEGORY_HOME);
+        a.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK); // TODO :
+        startActivity(a);
+    }
+
+    @Override
+    public void onBackPressed() {
+        new AlertDialog.Builder(this)
+                .setTitle("Do you want to sign-out or just leave the app?")
+                .setPositiveButton("Leave App", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        moveToHomeScreen();
+                    }
+                })
+                .setNegativeButton("Sign Out", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        askForConfirmation();
+                    }
+                })
+                .show();
+    }
+
 
 
 
@@ -328,6 +378,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
     }
+
 
 
 }
