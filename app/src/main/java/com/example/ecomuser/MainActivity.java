@@ -21,17 +21,24 @@ import com.example.ecomuser.Adapters.ProductAdapter;
 import com.example.ecomuser.Models.Cart;
 import com.example.ecomuser.Models.CartItem;
 import com.example.ecomuser.Models.Inventory;
+import com.example.ecomuser.Models.Order;
 import com.example.ecomuser.Models.Product;
+import com.example.ecomuser.fcmsender.FCMSender;
+import com.example.ecomuser.fcmsender.MsgFormatter;
 import com.example.ecomuser.databinding.ActivityMainBinding;
 import com.example.ecomuser.databinding.ProductItemSingleVbBinding;
 import com.firebase.ui.auth.AuthUI;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
-import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
+import com.google.firebase.Timestamp;
+
+import org.jetbrains.annotations.NotNull;
+
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -41,6 +48,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.Response;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -58,6 +69,8 @@ public class MainActivity extends AppCompatActivity {
     private MyApp app;
     private List<Product> products;
     private String username;
+    private Order order;
+
 
 
     @Override
@@ -173,27 +186,36 @@ public class MainActivity extends AppCompatActivity {
 
     private void makeOrder(String myEmailId) {
 
+        List<CartItem> cartItems = new ArrayList<>(cart.allCartItemsMap.values());
+        Timestamp timestamp = new Timestamp(new Date());
+
+
+        order = new Order();
+        order.totlItems  = cart.totalNoOfItems;
+        order.totlPrice = cart.totalPrice;
+        order.userAddress = myEmailId;
+        order.cartItemList = cartItems;
+        order.userName = username;
+        order.orderId = timestamp+"\n"+order.userAddress;
+        order.orderPlacedTs = timestamp;
 
         Map<String , Object> orderMap = new HashMap<>();
-        orderMap.put("Name",username);
-        orderMap.put("customerId",myEmailId);
+        orderMap.put("Order Details",order);
+        /*orderMap.put("customerId",myEmailId);
 
-        List<CartItem> cartItemList = new ArrayList<>(cart.allCartItemsMap.values());
 
-        orderMap.put("Items Ordered",cartItemList);
+
+        orderMap.put("Items Ordered",cartItems);
         orderMap.put("Total items",cart.totalNoOfItems);
-        orderMap.put("Total price",cart.totalPrice);
+        orderMap.put("Total price",cart.totalPrice);*/
 
 
-        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss");
-        String format = simpleDateFormat.format(new Date());
-
-        app.db.collection("Orders").document(format+"\n"+myEmailId)
+        app.db.collection("Orders").document(timestamp+"\n"+myEmailId)
                 .set(orderMap)
                 .addOnSuccessListener(new OnSuccessListener<Void>() {
                     @Override
                     public void onSuccess(Void aVoid) {
-                        app.showToast(MainActivity.this,"Order Saved!!");
+                        sendNotification();
                     }
                 })
                 .addOnFailureListener(new OnFailureListener() {
@@ -204,9 +226,36 @@ public class MainActivity extends AppCompatActivity {
                 });
     }
 
+    private void sendNotification() {
 
+        String message = MsgFormatter.getSampleMessage("admin","New Order","From:"+order.userAddress);
 
+        new FCMSender().send(message
+                , new Callback() {
+                    @Override
+                    public void onFailure(@NotNull Call call, @NotNull IOException e) {
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                Toast.makeText(MainActivity.this, "Failure!", Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                    }
 
+                    @Override
+                    public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                new AlertDialog.Builder(MainActivity.this)
+                                        .setTitle("Order Successfully placed!")
+                                        .setMessage(response.toString())
+                                        .show();
+                            }
+                        });
+                    }
+                });
+    }
 
 
     /** Cart Summary **/
