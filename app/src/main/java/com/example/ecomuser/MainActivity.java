@@ -31,6 +31,7 @@ import com.firebase.ui.auth.AuthUI;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
@@ -69,8 +70,7 @@ public class MainActivity extends AppCompatActivity {
     private MyApp app;
     private List<Product> products;
     private String username;
-    private Order order;
-
+    private String myEmailId;
 
 
     @Override
@@ -82,15 +82,18 @@ public class MainActivity extends AppCompatActivity {
         app = (MyApp) getApplicationContext();
 
         Intent signInIntent = getIntent();
-        String myEmailId = signInIntent.getStringExtra("MyId");
+        myEmailId = signInIntent.getStringExtra("MyId");
         username = signInIntent.getStringExtra("Username");
 
+        setupTopic();
         loadSavedData();
         setupCheckout();
-        setupOrderBtn(myEmailId);
+
     }
 
-
+    private void setupTopic() {
+        FirebaseMessaging.getInstance().subscribeToTopic("users");
+    }
 
 
     /** Load Data From Firebase **/
@@ -158,106 +161,6 @@ public class MainActivity extends AppCompatActivity {
 
 
 
-
-
-    /** Order Button **/
-    private void setupOrderBtn(String myEmailId) {
-        b.orderBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                new AlertDialog.Builder(MainActivity.this)
-                        .setTitle("Are you sure to make order?")
-                        .setPositiveButton("YES", new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                makeOrder(myEmailId);
-                            }
-                        })
-                        .setNegativeButton("CANCEL", new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                app.showToast(MainActivity.this,"Cancelled!!");
-                            }
-                        }).show();
-
-            }
-        });
-    }
-
-    private void makeOrder(String myEmailId) {
-
-        List<CartItem> cartItems = new ArrayList<>(cart.allCartItemsMap.values());
-        Timestamp timestamp = new Timestamp(new Date());
-
-
-        order = new Order();
-        order.totlItems  = cart.totalNoOfItems;
-        order.totlPrice = cart.totalPrice;
-        order.userAddress = myEmailId;
-        order.cartItemList = cartItems;
-        order.userName = username;
-        order.orderId = timestamp+"\n"+order.userAddress;
-        order.orderPlacedTs = timestamp;
-
-        Map<String , Object> orderMap = new HashMap<>();
-        orderMap.put("Order Details",order);
-        /*orderMap.put("customerId",myEmailId);
-
-
-
-        orderMap.put("Items Ordered",cartItems);
-        orderMap.put("Total items",cart.totalNoOfItems);
-        orderMap.put("Total price",cart.totalPrice);*/
-
-
-        app.db.collection("Orders").document(timestamp+"\n"+myEmailId)
-                .set(orderMap)
-                .addOnSuccessListener(new OnSuccessListener<Void>() {
-                    @Override
-                    public void onSuccess(Void aVoid) {
-                        sendNotification();
-                    }
-                })
-                .addOnFailureListener(new OnFailureListener() {
-                    @Override
-                    public void onFailure(@NonNull Exception e) {
-                        app.showToast(MainActivity.this,"Error!  Order cannot be saved..");
-                    }
-                });
-    }
-
-    private void sendNotification() {
-
-        String message = MsgFormatter.getSampleMessage("admin","New Order","From:"+order.userAddress);
-
-        new FCMSender().send(message
-                , new Callback() {
-                    @Override
-                    public void onFailure(@NotNull Call call, @NotNull IOException e) {
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                Toast.makeText(MainActivity.this, "Failure!", Toast.LENGTH_SHORT).show();
-                            }
-                        });
-                    }
-
-                    @Override
-                    public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                new AlertDialog.Builder(MainActivity.this)
-                                        .setTitle("Order Successfully placed!")
-                                        .setMessage(response.toString())
-                                        .show();
-                            }
-                        });
-                    }
-                });
-    }
-
-
     /** Cart Summary **/
     private void setupCheckout() {
         b.checkout.setOnClickListener(new View.OnClickListener() {
@@ -274,11 +177,9 @@ public class MainActivity extends AppCompatActivity {
 
     public void updateCartSummary() {
         if (cart.totalNoOfItems == 0){
-            b.orderBtn.setVisibility(View.GONE);
             b.checkout.setVisibility(View.GONE);
         }else{
             b.checkout.setVisibility(View.VISIBLE);
-            b.orderBtn.setVisibility(View.VISIBLE);
         }
         b.cartSummary.setText("Total Rs. "+cart.totalPrice+"\nTotal items: "+cart.totalNoOfItems);
     }
@@ -287,7 +188,7 @@ public class MainActivity extends AppCompatActivity {
         Intent intent = new Intent(this, CartActivity.class);
 
 
-        intent.putExtra(EXTRA_MESSAGE, cart);
+        intent.putExtra(EXTRA_MESSAGE, cart).putExtra("myEmailId",myEmailId).putExtra("user",username);
 
         startActivity(intent);
     }  // Intent (Cart Activity)
