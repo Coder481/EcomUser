@@ -10,7 +10,7 @@ import okhttp3.RequestBody;
 public class FCMSender {
 
     private static final String FCM_URL = "https://fcm.googleapis.com/fcm/send"
-            , KEY_STRING = "key=AAAAUTGZlKY:APA91bHGLB3e344eJm8ATrDUcskAn9YnjPJDelG5OKmBgGKFdSW53zMzZwTaPg_77Zzy_cS0UdiO8J9bpkdQpBdiaX9mC6TjZSRFSKxKUotpmI5YG8k1J1Zq4K-hWoAHQyn3b21X3PDV";
+            , KEY_STRING = "key=YOUR_KEY_HERE";
 
     OkHttpClient client = new OkHttpClient();
     public void send(String message, Callback callback){
