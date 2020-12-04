@@ -4,6 +4,7 @@ package com.example.ecomuser.Services;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.content.SharedPreferences;
 import android.os.Build;
 import android.util.Log;
 
@@ -20,6 +21,7 @@ import java.util.Random;
 
 public class MyFCMService  extends FirebaseMessagingService {
     private static final String CHANNEL_ID = "MyFCMService";
+    private SharedPreferences mSharedPref;
 
     @Override
     public void onMessageReceived(@NonNull RemoteMessage remoteMessage) {
@@ -27,10 +29,17 @@ public class MyFCMService  extends FirebaseMessagingService {
 
         String version = remoteMessage.getData().get("version");
 
-        createNotificationChannel();
+
+        mSharedPref = getSharedPreferences("signInId",MODE_PRIVATE);
+        String username =  mSharedPref.getString("username","");
+
 
         Map<String,String> dataMap = remoteMessage.getData();
 
+        if (!(dataMap.get("for").equals(username)))
+            return;
+
+        createNotificationChannel();
         /*Log.e("fcmDemo","version- "+version);
         Log.e("fcmDemo","notiTitle- "+remoteMessage.getNotification().getTitle());
         Log.e("fcmDemo","notiBody- "+remoteMessage.getNotification().getBody());*/

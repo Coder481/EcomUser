@@ -300,10 +300,6 @@ public class MainActivity extends AppCompatActivity {
         Gson gson = new Gson();
         mSharedPref.edit()
                 .putString(MY_DATA,gson.toJson(cart.allCartItemsMap))
-                .putInt("singleVBPQty",(int)(cart.allCartItemsMap.get(product.name+" "+product.variants.get(0)).qty))
-                .putString("totalVariantsQtyMap",gson.toJson(cart.totalVariantsQtyMap))
-                .putInt("totalPrice",cart.totalPrice)
-                .putInt("totalNoOfItems",cart.totalNoOfItems)
                 .apply();
     }
 
